@@ -28,6 +28,8 @@ class InterfaceGrafica:
         self.modo_visualizacao = "agente"
         self.densidade_pocos = densidade_pocos
         self.hover_pos = (-1, -1)
+        self.sidebar_scroll = 0
+        self.sidebar_max_scroll = 0
 
         self.secoes = {
             "configuracao": {"titulo": "Configuracao", "aberta": True, "rect": pygame.Rect(0, 0, 0, 0)},
@@ -64,6 +66,7 @@ class InterfaceGrafica:
         self.botao_densidade_denso = pygame.Rect(0, 0, 0, 0)
 
         self.sprite_agente_original = self._carregar_sprite_agente()
+        self.sprite_wumpus_original = self._carregar_sprite_wumpus()
 
     def _configurar_design_system(self):
         self.COR_BG = (8, 11, 17)
@@ -117,6 +120,13 @@ class InterfaceGrafica:
         except pygame.error:
             return None
 
+    def _carregar_sprite_wumpus(self):
+        caminho = os.path.join(os.path.dirname(__file__), "fotoWumpus.jpeg")
+        try:
+            return pygame.image.load(caminho).convert()
+        except pygame.error:
+            return None
+
     def processar_eventos(self, agente):
         self.hover_pos = pygame.mouse.get_pos()
         for event in pygame.event.get():
@@ -125,6 +135,9 @@ class InterfaceGrafica:
                 sys.exit()
             elif event.type == pygame.MOUSEMOTION:
                 self.hover_pos = event.pos
+            elif event.type == pygame.MOUSEWHEEL:
+                if self.hover_pos[0] >= self.largura_grade:
+                    self.sidebar_scroll = max(0, min(self.sidebar_max_scroll, self.sidebar_scroll - event.y * 28))
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self._clicou_secao(event.pos):
                     return None
@@ -394,20 +407,47 @@ class InterfaceGrafica:
         self._desenhar_estrela((centro[0] + 18, centro[1] - 12), 6, self.COR_OURO)
 
     def _desenhar_wumpus(self, rect):
-        centro = rect.center
-        raio = rect.width // 4
-        for i in range(14):
-            angulo = i * (2 * math.pi / 14)
-            px = int(centro[0] + (raio + 5) * math.cos(angulo))
-            py = int(centro[1] + (raio + 5) * math.sin(angulo))
-            pygame.draw.line(self.tela, (126, 58, 166), centro, (px, py), 2)
-        pygame.draw.circle(self.tela, self.COR_WUMPUS, centro, raio + 2)
-        pygame.draw.circle(self.tela, (78, 32, 104), centro, raio + 2, 2)
-        pygame.draw.circle(self.tela, (255, 88, 112), (centro[0] - 6, centro[1] - 4), 3)
-        pygame.draw.circle(self.tela, (255, 88, 112), (centro[0] + 6, centro[1] - 4), 3)
-        pygame.draw.polygon(self.tela, (215, 219, 224), [(centro[0] - 11, centro[1] - 12), (centro[0] - 3, centro[1] - 18), (centro[0] - 2, centro[1] - 7)])
-        pygame.draw.polygon(self.tela, (215, 219, 224), [(centro[0] + 11, centro[1] - 12), (centro[0] + 3, centro[1] - 18), (centro[0] + 2, centro[1] - 7)])
-        pygame.draw.arc(self.tela, (255, 255, 255), (centro[0] - 8, centro[1], 16, 10), math.pi, math.tau, 2)
+        frame_tamanho = max(26, int(rect.width * 0.6))
+        frame = pygame.Rect(0, 0, frame_tamanho, frame_tamanho)
+        frame.center = rect.center
+
+        # Brilho roxo ao redor
+        glow = pygame.Surface((frame.width + 18, frame.height + 18), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (209, 96, 255, 50), (glow.get_width() // 2, glow.get_height() // 2), frame.width // 2 + 6)
+        self.tela.blit(glow, (frame.x - 9, frame.y - 9))
+
+        # Fundo circular
+        pygame.draw.ellipse(self.tela, self.COR_CARD_DEEP, frame)
+        pygame.draw.ellipse(self.tela, self.COR_WUMPUS, frame, 2)
+
+        # Renderizar sprite com mascara circular
+        if self.sprite_wumpus_original is not None:
+            tamanho = max(frame.width, frame.height)
+            sprite = pygame.transform.smoothscale(self.sprite_wumpus_original, (tamanho, tamanho))
+            recorte = pygame.Rect(
+                (sprite.get_width() - frame.width) // 2,
+                (sprite.get_height() - frame.height) // 3,
+                frame.width,
+                frame.height,
+            )
+            sprite_crop = pygame.Surface((frame.width, frame.height), pygame.SRCALPHA)
+            sprite_crop.blit(sprite, (0, 0), recorte)
+            mascara = pygame.Surface((frame.width, frame.height), pygame.SRCALPHA)
+            pygame.draw.ellipse(mascara, (255, 255, 255, 255), mascara.get_rect())
+            sprite_crop.blit(mascara, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            self.tela.blit(sprite_crop, frame.topleft)
+            # Leve brilho
+            brilho = pygame.Surface((frame.width, frame.height), pygame.SRCALPHA)
+            pygame.draw.ellipse(brilho, (209, 96, 255, 20), brilho.get_rect())
+            self.tela.blit(brilho, frame.topleft)
+        else:
+            # Fallback: desenho simples se a imagem nao carregar
+            centro = rect.center
+            raio = rect.width // 4
+            pygame.draw.circle(self.tela, self.COR_WUMPUS, centro, raio + 2)
+            pygame.draw.circle(self.tela, (78, 32, 104), centro, raio + 2, 2)
+            pygame.draw.circle(self.tela, (255, 88, 112), (centro[0] - 6, centro[1] - 4), 3)
+            pygame.draw.circle(self.tela, (255, 88, 112), (centro[0] + 6, centro[1] - 4), 3)
 
     def _desenhar_agente(self, rect, tem_ouro, simbolo_direcao, tem_flecha):
         frame_tamanho = max(26, int(rect.width * 0.54))
@@ -498,38 +538,102 @@ class InterfaceGrafica:
         header_rect = pygame.Rect(x, y, largura_card, self.HEADER_H)
         self._draw_section_card(header_rect)
         self._desenhar_header_compacto(header_rect, ambiente, agente, em_pausa)
-        y = header_rect.bottom + self.SPACE_SECTION
+        topo_secoes = header_rect.bottom + self.SPACE_SECTION
 
-        layout = self._layout_sidebar_sections(y, agente)
-        self._draw_section_card(layout["configuracao"])
-        self._desenhar_secao_configuracao(layout["configuracao"], ambiente.n, agente)
-        self._draw_section_card(layout["telemetria"])
-        self._desenhar_secao_telemetria(layout["telemetria"], ambiente, agente, fps)
-        self._draw_section_card(layout["registro"])
-        self._desenhar_secao_registro(layout["registro"], agente)
-        self._draw_section_card(layout["comandos"])
-        self._desenhar_secao_comandos(layout["comandos"], agente)
+        layout, conteudo_total = self._layout_sidebar_sections(topo_secoes, agente)
+
+        # Calcular scroll maximo
+        self.sidebar_max_scroll = max(0, conteudo_total - (self.altura - self.SPACE_OUTER))
+        self.sidebar_scroll = max(0, min(self.sidebar_scroll, self.sidebar_max_scroll))
+
+        # Clipping para a area abaixo do header
+        clip_prev = self.tela.get_clip()
+        sidebar_clip = pygame.Rect(x0, topo_secoes, self.largura_painel, self.altura - topo_secoes)
+        self.tela.set_clip(sidebar_clip)
+
+        # Aplicar scroll offset a cada secao
+        for chave in ["configuracao", "telemetria", "registro", "comandos"]:
+            r = layout[chave]
+            scrolled = pygame.Rect(r.x, r.y - self.sidebar_scroll, r.width, r.height)
+            # Pular se totalmente fora da tela
+            if scrolled.bottom < topo_secoes or scrolled.top > self.altura:
+                continue
+            self._draw_section_card(scrolled)
+            if chave == "configuracao":
+                self._desenhar_secao_configuracao(scrolled, ambiente.n, agente)
+            elif chave == "telemetria":
+                self._desenhar_secao_telemetria(scrolled, ambiente, agente, fps)
+            elif chave == "registro":
+                self._desenhar_secao_registro(scrolled, agente)
+            elif chave == "comandos":
+                self._desenhar_secao_comandos(scrolled, agente)
+
+        self.tela.set_clip(clip_prev)
+
+        # Indicador de scroll
+        if self.sidebar_max_scroll > 0:
+            self._desenhar_scrollbar(x0, topo_secoes, self.altura - topo_secoes)
+
+    def _desenhar_scrollbar(self, x0, topo, altura_visivel):
+        if self.sidebar_max_scroll <= 0:
+            return
+        total_conteudo = altura_visivel + self.sidebar_max_scroll
+        thumb_h = max(20, int(altura_visivel * altura_visivel / total_conteudo))
+        thumb_y = topo + int(self.sidebar_scroll / self.sidebar_max_scroll * (altura_visivel - thumb_h))
+        bar_x = x0 + self.largura_painel - 6
+        pygame.draw.rect(self.tela, self.COR_STROKE_SOFT, (bar_x, thumb_y, 4, thumb_h), border_radius=2)
+
+    def _calcular_config_body_h(self, agente):
+        """Calcula a altura exata do corpo da secao Configuracao."""
+        h = 0
+        # Modo de jogo: label(16) + botao(28) + gap(8)
+        h += 16 + self.CONTROL_H + 8
+
+        if agente.modo_ia:
+            # Tipo de agente: label(16) + botao(28) + gap(8)
+            h += 16 + self.CONTROL_H + 8
+
+        if agente.modo_ia and agente.tipo_agente == "q_learning":
+            # Operacao Q-Learning: label(16) + botao(28) + gap(8)
+            h += 16 + self.CONTROL_H + 8
+            # Reset/Salvar/Carregar: botao(28) + gap(8)
+            h += self.CONTROL_H + 8
+
+        if not (agente.modo_ia and agente.tipo_agente == "q_learning"):
+            # Visualizacao: label(16) + botao(28) + gap(8)
+            h += 16 + self.CONTROL_H + 8
+            # Escala do mundo: label(16) + botao(28) + gap(8)
+            h += 16 + self.CONTROL_H + 8
+            # Densidade de pocos: label(16) + botao(28)
+            h += 16 + self.CONTROL_H
+
+        return h
+
+    def _calcular_telemetria_body_h(self, agente):
+        """Calcula a altura exata do corpo da secao Telemetria."""
+        if not agente.modo_ia:
+            return 7 * self.SPACE_ROW + 4
+        if agente.tipo_agente == "regras":
+            return 9 * self.SPACE_ROW + 4
+        # Q-Learning: 17 linhas de telemetria + grafico
+        return 17 * min(self.SPACE_ROW, 18) + 80
 
     def _layout_sidebar_sections(self, topo, agente):
         x = self.largura_grade + self.SPACE_OUTER
         largura = self.largura_painel - self.SPACE_OUTER * 2
         gap = self.SPACE_SECTION
+        header_pad = self.SECTION_HEADER_H + 16  # header + padding
 
-        q_ativo = agente.modo_ia and agente.tipo_agente == "q_learning"
-        config_body_h = (252 if q_ativo else 226) if self.secoes["configuracao"]["aberta"] else 0
-        tele_body_h = (300 if q_ativo else 148) if self.secoes["telemetria"]["aberta"] else 0
+        # Calcular alturas reais do corpo de cada secao
+        config_body_h = self._calcular_config_body_h(agente) if self.secoes["configuracao"]["aberta"] else 0
+        tele_body_h = self._calcular_telemetria_body_h(agente) if self.secoes["telemetria"]["aberta"] else 0
         cmd_body_h = 76 if self.secoes["comandos"]["aberta"] else 0
+        logs_body_h = self.LOG_MAX_H if self.secoes["registro"]["aberta"] else 0
 
-        config_h = self.SECTION_HEADER_H + config_body_h
-        tele_h = self.SECTION_HEADER_H + tele_body_h
-        cmd_h = self.SECTION_HEADER_H + cmd_body_h
-
-        used_without_logs = config_h + tele_h + cmd_h + gap * 3
-        available_logs = self.altura - self.SPACE_OUTER - topo - used_without_logs
-        logs_body_h = 0
-        if self.secoes["registro"]["aberta"]:
-            logs_body_h = max(0, min(self.LOG_MAX_H, available_logs - self.SECTION_HEADER_H))
-        logs_h = self.SECTION_HEADER_H + logs_body_h
+        config_h = header_pad + config_body_h
+        tele_h = header_pad + tele_body_h
+        logs_h = header_pad + logs_body_h
+        cmd_h = header_pad + cmd_body_h
 
         rects = {}
         y = topo
@@ -541,7 +645,9 @@ class InterfaceGrafica:
         ]:
             rects[chave] = pygame.Rect(x, y, largura, h)
             y += h + gap
-        return rects
+
+        conteudo_total = y - gap  # ultimo gap nao conta
+        return rects, conteudo_total
 
     def _desenhar_header_compacto(self, rect, ambiente, agente, em_pausa):
         self.tela.blit(self.fonte_titulo.render("WUMPUS WORLD", True, self.COR_TEXTO), (rect.x + 12, rect.y + 8))
