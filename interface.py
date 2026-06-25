@@ -42,6 +42,8 @@ class InterfaceGrafica:
         self.botao_visao_completa = pygame.Rect(0, 0, 0, 0)
         self.botao_modo_humano = pygame.Rect(0, 0, 0, 0)
         self.botao_modo_agente = pygame.Rect(0, 0, 0, 0)
+        self.botao_wumpus_estatico = pygame.Rect(0, 0, 0, 0)
+        self.botao_wumpus_movel = pygame.Rect(0, 0, 0, 0)
         self.botao_agente_regras = pygame.Rect(0, 0, 0, 0)
         self.botao_agente_qlearning = pygame.Rect(0, 0, 0, 0)
         self.botao_q_treino = pygame.Rect(0, 0, 0, 0)
@@ -145,6 +147,10 @@ class InterfaceGrafica:
                     return "MODO_HUMANO"
                 if self.botao_modo_agente.collidepoint(event.pos) and agente.modo_jogo != "agente":
                     return "MODO_AGENTE"
+                if self.botao_wumpus_estatico.collidepoint(event.pos) and agente.wumpus_movel:
+                    return "MODO_WUMPUS"
+                if self.botao_wumpus_movel.collidepoint(event.pos) and not agente.wumpus_movel:
+                    return "MODO_WUMPUS"
                 if self.botao_agente_regras.collidepoint(event.pos) and agente.tipo_agente != "regras":
                     return "TIPO_REGRAS"
                 if self.botao_agente_qlearning.collidepoint(event.pos) and agente.tipo_agente != "q_learning":
@@ -588,6 +594,8 @@ class InterfaceGrafica:
         h = 0
         # Modo de jogo: label(16) + botao(28) + gap(8)
         h += 16 + self.CONTROL_H + 8
+        # Comportamento do Wumpus: label(16) + botao(28) + gap(8)
+        h += 16 + self.CONTROL_H + 8
 
         if agente.modo_ia:
             # Tipo de agente: label(16) + botao(28) + gap(8)
@@ -612,11 +620,11 @@ class InterfaceGrafica:
     def _calcular_telemetria_body_h(self, agente):
         """Calcula a altura exata do corpo da secao Telemetria."""
         if not agente.modo_ia:
-            return 7 * self.SPACE_ROW + 4
+            return 8 * self.SPACE_ROW + 4
         if agente.tipo_agente == "regras":
-            return 9 * self.SPACE_ROW + 4
-        # Q-Learning: 17 linhas de telemetria + grafico
-        return 17 * min(self.SPACE_ROW, 18) + 80
+            return 10 * self.SPACE_ROW + 4
+        # Q-Learning: 18 linhas de telemetria + grafico
+        return 18 * min(self.SPACE_ROW, 18) + 80
 
     def _layout_sidebar_sections(self, topo, agente):
         x = self.largura_grade + self.SPACE_OUTER
@@ -700,6 +708,8 @@ class InterfaceGrafica:
         self.botao_densidade_leve = pygame.Rect(0, 0, 0, 0)
         self.botao_densidade_normal = pygame.Rect(0, 0, 0, 0)
         self.botao_densidade_denso = pygame.Rect(0, 0, 0, 0)
+        self.botao_wumpus_estatico = pygame.Rect(0, 0, 0, 0)
+        self.botao_wumpus_movel = pygame.Rect(0, 0, 0, 0)
 
         self.tela.blit(self.fonte_pequena.render("Modo de jogo", True, self.COR_TEXTO_MUTED), (x, y))
         y += 16
@@ -709,6 +719,16 @@ class InterfaceGrafica:
         self._draw_button_group([
             (self.botao_modo_humano, "Humano", agente.modo_jogo == "humano"),
             (self.botao_modo_agente, "Agente automatico", agente.modo_jogo == "agente"),
+        ])
+
+        y += self.CONTROL_H + 8
+        self.tela.blit(self.fonte_pequena.render("Comportamento do Wumpus", True, self.COR_TEXTO_MUTED), (x, y))
+        y += 16
+        self.botao_wumpus_estatico = pygame.Rect(x, y, largura_botao, self.CONTROL_H)
+        self.botao_wumpus_movel = pygame.Rect(x + largura_botao + self.SPACE_CONTROL_GAP, y, largura_botao, self.CONTROL_H)
+        self._draw_button_group([
+            (self.botao_wumpus_estatico, "Estatico", not agente.wumpus_movel),
+            (self.botao_wumpus_movel, "Movel", agente.wumpus_movel),
         ])
 
         if agente.modo_ia:
@@ -794,6 +814,7 @@ class InterfaceGrafica:
         if not agente.modo_ia:
             dados = [
                 ("Modo", "Humano"),
+                ("Wumpus", "Movel" if agente.wumpus_movel else "Estatico"),
                 ("Posicao", str(agente.pos)),
                 ("Direcao", agente.simbolo_direcao()),
                 ("Mapa", f"{ambiente.n} x {ambiente.n}"),
@@ -808,6 +829,7 @@ class InterfaceGrafica:
             dados = [
                 ("Modo", "Agente"),
                 ("Tipo", "Regras"),
+                ("Wumpus", "Movel" if agente.wumpus_movel else "Estatico"),
                 ("Posicao", str(agente.pos)),
                 ("Direcao", agente.simbolo_direcao()),
                 ("Passos", str(agente.passos)),
@@ -827,6 +849,7 @@ class InterfaceGrafica:
         }
         dados = [
             ("Operacao", nomes_modo[agente.modo_q_learning]),
+            ("Wumpus", "Movel" if agente.wumpus_movel else "Estatico"),
             ("Episodio", str(metricas["episodio"])),
             ("Passo", str(metricas["passo"])),
             ("Epsilon", f"{metricas['epsilon']:.3f}"),
@@ -876,7 +899,7 @@ class InterfaceGrafica:
             linhas = [
                 "[Q] Regras   [T] Liga/desliga treino",
                 "[S] Passo unico   [X] Reset Q-table",
-                "[F5] Salvar Q   [F9] Carregar Q   [+/-] Velocidade",
+                "[M] Wumpus movel   [F5/F9] Salvar/Carregar",
             ]
         for idx, linha in enumerate(linhas):
             cor = self.COR_TEXTO_MUTED if idx == 1 else self.COR_TEXTO

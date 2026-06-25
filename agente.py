@@ -22,6 +22,7 @@ Q_RECOMPENSAS = {
     "acao_invalida": -12.0,
     "atirar_wumpus": 50.0,
     "errar_tiro": -15.0,
+    "limite_passos": -80.0,
 }
 
 
@@ -244,6 +245,16 @@ class Agente:
             ouro_relativo,
         )
 
+    def acoes_q_learning_disponiveis(self, percepcao):
+        acoes = ["GIRAR_ESQUERDA", "GIRAR_DIREITA"]
+        if self.posicao_valida(self.proxima_posicao_frente()):
+            acoes.insert(0, "MOVER")
+        if percepcao["brilho"] and not self.has_gold:
+            acoes.append("PEGAR_OURO")
+        if self.has_arrow and self.kb.wumpus_vivo:
+            acoes.append("ATIRAR")
+        return acoes
+
     def passo_q_learning(self, ambiente, treinamento=None, registrar_log=True, finalizar_episodio=True):
         if not self.alive or self.vitorioso:
             return None
@@ -254,7 +265,12 @@ class Agente:
         percepcao = ambiente.get_percepcoes(self.pos)
         self.registrar_percepcao_atual(percepcao, registrar_log=registrar_log)
         estado = self.estado_q_learning(percepcao, ambiente)
-        acao, explorando = self.q_learning.escolher_acao(estado, treinamento=treinamento)
+        acoes_disponiveis = self.acoes_q_learning_disponiveis(percepcao)
+        acao, explorando = self.q_learning.escolher_acao(
+            estado,
+            treinamento=treinamento,
+            acoes_disponiveis=acoes_disponiveis,
+        )
 
         recompensa, terminou, resultado = self.executar_acao_q_learning(acao, ambiente, registrar_log=registrar_log)
 
@@ -262,9 +278,17 @@ class Agente:
         if self.alive and not self.vitorioso:
             self.registrar_percepcao_atual(proxima_percepcao, registrar_log=registrar_log)
         proximo_estado = self.estado_q_learning(proxima_percepcao, ambiente)
+        proximas_acoes = self.acoes_q_learning_disponiveis(proxima_percepcao)
 
         if treinamento:
-            self.q_learning.atualizar(estado, acao, recompensa, proximo_estado, terminou)
+            self.q_learning.atualizar(
+                estado,
+                acao,
+                recompensa,
+                proximo_estado,
+                terminou,
+                proximas_acoes=proximas_acoes,
+            )
 
         self.ultima_acao = acao
         self.ultima_recompensa = recompensa

@@ -56,26 +56,37 @@ class AgenteQLearning:
         self.ultimo_lote_segundos = 0.0
         self._inicio_lote = time.perf_counter()
 
-    def escolher_acao(self, estado, treinamento=True):
+    def _acoes_disponiveis(self, acoes_disponiveis=None):
+        if not acoes_disponiveis:
+            return self.acoes
+        return [acao for acao in acoes_disponiveis if acao in self.acoes] or self.acoes
+
+    def escolher_acao(self, estado, treinamento=True, acoes_disponiveis=None):
+        acoes = self._acoes_disponiveis(acoes_disponiveis)
         explorando = treinamento and random.random() < self.epsilon
         if explorando:
-            acao = random.choice(self.acoes)
+            acao = random.choice(acoes)
         else:
-            acao = self.melhor_acao(estado)
+            acao = self.melhor_acao(estado, acoes)
 
         self.ultima_acao = acao
         self.ultimo_valor_q = self.q_table[estado][acao]
         return acao, explorando
 
-    def melhor_acao(self, estado):
+    def melhor_acao(self, estado, acoes_disponiveis=None):
+        acoes = self._acoes_disponiveis(acoes_disponiveis)
         valores = self.q_table[estado]
-        maior_valor = max(valores.values())
-        melhores_acoes = [acao for acao, valor in valores.items() if valor == maior_valor]
+        maior_valor = max(valores[acao] for acao in acoes)
+        melhores_acoes = [acao for acao in acoes if valores[acao] == maior_valor]
         return random.choice(melhores_acoes)
 
-    def atualizar(self, estado, acao, recompensa, proximo_estado, terminou):
+    def atualizar(self, estado, acao, recompensa, proximo_estado, terminou, proximas_acoes=None):
         valor_atual = self.q_table[estado][acao]
-        melhor_futuro = 0.0 if terminou else max(self.q_table[proximo_estado].values())
+        if terminou:
+            melhor_futuro = 0.0
+        else:
+            proximas = self._acoes_disponiveis(proximas_acoes)
+            melhor_futuro = max(self.q_table[proximo_estado][proxima_acao] for proxima_acao in proximas)
         alvo = recompensa + self.gamma * melhor_futuro
         novo_valor = valor_atual + self.alpha * (alvo - valor_atual)
         self.q_table[estado][acao] = novo_valor

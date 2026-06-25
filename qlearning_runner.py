@@ -1,5 +1,5 @@
 from ambiente import Ambiente
-from agente import Agente
+from agente import Agente, Q_RECOMPENSAS
 
 
 def treinar_q_learning_em_lote(
@@ -51,6 +51,8 @@ def executar_episodio_q_learning(
     agente.q_learning = q_learning
     agente.logs_ativos = False
 
+    ultima_transicao = None
+
     for _ in range(max_passos_por_episodio):
         if wumpus_movel and agente.passos > 0 and agente.passos % frequencia_wumpus == 0:
             if ambiente.mover_wumpus():
@@ -69,6 +71,15 @@ def executar_episodio_q_learning(
         )
         if transicao is None or transicao["terminou"]:
             return
+        ultima_transicao = transicao
 
-    q_learning.registrar_passo(-35.0)
+    if ultima_transicao is not None:
+        q_learning.atualizar(
+            ultima_transicao["estado"],
+            ultima_transicao["acao"],
+            Q_RECOMPENSAS["limite_passos"],
+            ultima_transicao["proximo_estado"],
+            True,
+        )
+    q_learning.registrar_passo(Q_RECOMPENSAS["limite_passos"])
     q_learning.finalizar_episodio("limite_passos", aplicar_decay=True)

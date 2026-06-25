@@ -1,7 +1,7 @@
 import pygame
 import time
 from ambiente import Ambiente
-from agente import Agente
+from agente import Agente, Q_RECOMPENSAS
 from interface import InterfaceGrafica
 from qlearning_runner import treinar_q_learning_em_lote
 
@@ -99,14 +99,18 @@ def main():
             agente.adicionar_log(f"Modo de controle: {'IA (Automatico)' if agente.modo_ia else 'MANUAL (Teclado)'}")
         elif cmd == "MODO_WUMPUS":
             WUMPUS_MOVEL = not WUMPUS_MOVEL
-            ambiente.wumpus_movel = WUMPUS_MOVEL
-            agente.wumpus_movel = WUMPUS_MOVEL
-            agente.kb.wumpus_movel = WUMPUS_MOVEL
-            if WUMPUS_MOVEL and agente.kb.wumpus_vivo:
-                agente.kb.possiveis_posicoes_wumpus = {
-                    (r, c) for r in range(BOARD_SIZE) for c in range(BOARD_SIZE) if (r, c) != (0, 0)
-                }
+            agente_anterior = agente
+            ambiente, agente = inicializar_jogo(BOARD_SIZE, NUM_PITS, WUMPUS_MOVEL, PIT_DENSITY_MODE)
+            agente.modo_jogo = agente_anterior.modo_jogo
+            agente.tipo_agente = agente_anterior.tipo_agente
+            agente.treinamento_q = agente_anterior.treinamento_q
+            agente.modo_q_learning = agente_anterior.modo_q_learning
+            interface.sidebar_scroll = 0
+            ultimo_passo_tempo = time.time()
+            momento_fim_episodio = None
+            em_pausa = False
             agente.adicionar_log(f"Wumpus Movel: {'ATIVADO' if WUMPUS_MOVEL else 'DESATIVADO'}")
+            agente.adicionar_log("Novo cenario iniciado e Q-table resetada para este modo.")
         elif cmd == "TOGGLE_IA":
             agente.configurar_modo_jogo("humano" if agente.modo_ia else "agente")
         elif cmd == "MODO_HUMANO":
@@ -312,7 +316,31 @@ def main():
             if agente.alive:
                 if agente.tipo_agente == "q_learning":
                     treinamento_visual = agente.modo_q_learning == "passo_a_passo" and agente.treinamento_q
-                    agente.passo_q_learning(ambiente, treinamento=treinamento_visual)
+                    transicao_q = agente.passo_q_learning(ambiente, treinamento=treinamento_visual)
+                    if (
+                        transicao_q is not None
+                        and not transicao_q["terminou"]
+                        and agente.q_learning.passo_atual >= MAX_STEPS_PER_Q_EPISODE
+                    ):
+                        if treinamento_visual:
+                            agente.q_learning.atualizar(
+                                transicao_q["estado"],
+                                transicao_q["acao"],
+                                Q_RECOMPENSAS["limite_passos"],
+                                transicao_q["proximo_estado"],
+                                True,
+                            )
+                        agente.q_learning.registrar_passo(Q_RECOMPENSAS["limite_passos"])
+                        agente.q_learning.finalizar_episodio("limite_passos", aplicar_decay=treinamento_visual)
+                        agente.episodios = agente.q_learning.episodio_atual
+                        agente.passos_episodio = agente.q_learning.passo_atual
+                        agente.adicionar_log("Episodio Q-Learning encerrado por limite de passos.")
+                        ambiente, agente, interface = recriar_jogo(
+                            interface, BOARD_SIZE, NUM_PITS, WUMPUS_MOVEL, PIT_DENSITY_MODE, agente
+                        )
+                        ultimo_passo_tempo = time.time()
+                        momento_fim_episodio = None
+                        em_pausa = False
                 else:
                     percepcoes = ambiente.get_percepcoes(agente.pos)
                     agente.agir(percepcoes)

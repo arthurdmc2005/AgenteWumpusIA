@@ -14,11 +14,11 @@ class BaseConhecimento:
         self.sem_poco = {(0, 0)}
         self.pocos_confirmados = set()
 
-        if self.wumpus_movel:
-            self.possiveis_posicoes_wumpus = {(r, c) for r in range(n) for c in range(n) if (r, c) != (0, 0)}
-        else:
-            self.sem_wumpus = {(0, 0)}
-            self.wumpus_confirmado = None
+        self.possiveis_posicoes_wumpus = {
+            (r, c) for r in range(n) for c in range(n) if (r, c) != (0, 0)
+        }
+        self.sem_wumpus = {(0, 0)}
+        self.wumpus_confirmado = None
 
     def vizinhos(self, pos):
         r, c = pos
