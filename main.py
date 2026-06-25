@@ -8,10 +8,10 @@ from qlearning_runner import treinar_q_learning_em_lote
 # ==========================================
 # CONFIGURACOES INICIAIS DA SIMULACAO
 # ==========================================
-BOARD_SIZE = 6
+BOARD_SIZE = 4
 NUM_PITS = None
 PIT_DENSITY_MODE = "normal"  # leve=10%, normal=12.5%, denso=20%
-WUMPUS_MOVEL = True
+WUMPUS_MOVEL = False
 WUMPUS_MOVE_FREQUENCY = 3
 SIMULATION_SPEED = 2
 Q_TABLE_PATH = "q_table.json"
