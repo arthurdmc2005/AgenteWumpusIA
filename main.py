@@ -99,18 +99,13 @@ def main():
             agente.adicionar_log(f"Modo de controle: {'IA (Automatico)' if agente.modo_ia else 'MANUAL (Teclado)'}")
         elif cmd == "MODO_WUMPUS":
             WUMPUS_MOVEL = not WUMPUS_MOVEL
-            agente_anterior = agente
-            ambiente, agente = inicializar_jogo(BOARD_SIZE, NUM_PITS, WUMPUS_MOVEL, PIT_DENSITY_MODE)
-            agente.modo_jogo = agente_anterior.modo_jogo
-            agente.tipo_agente = agente_anterior.tipo_agente
-            agente.treinamento_q = agente_anterior.treinamento_q
-            agente.modo_q_learning = agente_anterior.modo_q_learning
-            interface.sidebar_scroll = 0
+            ambiente, agente, interface = recriar_jogo(
+                interface, BOARD_SIZE, NUM_PITS, WUMPUS_MOVEL, PIT_DENSITY_MODE, agente, novo_episodio=True
+            )
             ultimo_passo_tempo = time.time()
             momento_fim_episodio = None
             em_pausa = False
             agente.adicionar_log(f"Wumpus Movel: {'ATIVADO' if WUMPUS_MOVEL else 'DESATIVADO'}")
-            agente.adicionar_log("Novo cenario iniciado e Q-table resetada para este modo.")
         elif cmd == "TOGGLE_IA":
             agente.configurar_modo_jogo("humano" if agente.modo_ia else "agente")
         elif cmd == "MODO_HUMANO":
@@ -119,10 +114,28 @@ def main():
             agente.configurar_modo_jogo("agente")
         elif cmd == "TIPO_REGRAS":
             agente.configurar_tipo_agente("regras")
+            ambiente, agente, interface = recriar_jogo(
+                interface, BOARD_SIZE, NUM_PITS, WUMPUS_MOVEL, PIT_DENSITY_MODE, agente, novo_episodio=True
+            )
+            ultimo_passo_tempo = time.time()
+            momento_fim_episodio = None
+            em_pausa = False
         elif cmd == "TIPO_Q_LEARNING":
             agente.configurar_tipo_agente("q_learning")
+            ambiente, agente, interface = recriar_jogo(
+                interface, BOARD_SIZE, NUM_PITS, WUMPUS_MOVEL, PIT_DENSITY_MODE, agente, novo_episodio=True
+            )
+            ultimo_passo_tempo = time.time()
+            momento_fim_episodio = None
+            em_pausa = False
         elif cmd == "TOGGLE_TIPO_AGENTE":
             agente.configurar_tipo_agente("regras" if agente.tipo_agente == "q_learning" else "q_learning")
+            ambiente, agente, interface = recriar_jogo(
+                interface, BOARD_SIZE, NUM_PITS, WUMPUS_MOVEL, PIT_DENSITY_MODE, agente, novo_episodio=True
+            )
+            ultimo_passo_tempo = time.time()
+            momento_fim_episodio = None
+            em_pausa = False
         elif cmd == "Q_TREINO_RAPIDO":
             agente.configurar_modo_jogo("agente")
             agente.configurar_tipo_agente("q_learning")
