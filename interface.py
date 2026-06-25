@@ -128,22 +128,25 @@ class InterfaceGrafica:
         caminho = os.path.join(os.path.dirname(__file__), "fotoWumpus.jpeg")
         try:
             return pygame.image.load(caminho).convert()
-        except pygame.error:
+        except (pygame.error, FileNotFoundError):
             return None
 
     def _carregar_sprite_ouro(self):
         caminho = os.path.join(os.path.dirname(__file__), "fotoCopa.jpg")
         try:
             return pygame.image.load(caminho).convert()
-        except pygame.error:
+        except (pygame.error, FileNotFoundError):
             return None
 
     def _carregar_sprite_poco(self):
-        caminho = os.path.join(os.path.dirname(__file__), "fotoPoço.jpg")
-        try:
-            return pygame.image.load(caminho).convert()
-        except pygame.error:
-            return None
+        base = os.path.dirname(__file__)
+        for nome in ("fotoPoco.jpg", "fotoPoço.jpg", "fotoPoÃ§o.jpg"):
+            caminho = os.path.join(base, nome)
+            try:
+                return pygame.image.load(caminho).convert()
+            except (pygame.error, FileNotFoundError):
+                continue
+        return None
 
     def processar_eventos(self, agente):
         self.hover_pos = pygame.mouse.get_pos()
