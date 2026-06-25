@@ -69,6 +69,8 @@ class InterfaceGrafica:
 
         self.sprite_agente_original = self._carregar_sprite_agente()
         self.sprite_wumpus_original = self._carregar_sprite_wumpus()
+        self.sprite_ouro_original = self._carregar_sprite_ouro()
+        self.sprite_poco_original = self._carregar_sprite_poco()
 
     def _configurar_design_system(self):
         self.COR_BG = (8, 11, 17)
@@ -124,6 +126,20 @@ class InterfaceGrafica:
 
     def _carregar_sprite_wumpus(self):
         caminho = os.path.join(os.path.dirname(__file__), "fotoWumpus.jpeg")
+        try:
+            return pygame.image.load(caminho).convert()
+        except pygame.error:
+            return None
+
+    def _carregar_sprite_ouro(self):
+        caminho = os.path.join(os.path.dirname(__file__), "fotoCopa.jpg")
+        try:
+            return pygame.image.load(caminho).convert()
+        except pygame.error:
+            return None
+
+    def _carregar_sprite_poco(self):
+        caminho = os.path.join(os.path.dirname(__file__), "fotoPoço.jpg")
         try:
             return pygame.image.load(caminho).convert()
         except pygame.error:
@@ -394,6 +410,16 @@ class InterfaceGrafica:
             self._desenhar_wumpus(rect)
 
     def _desenhar_poco(self, rect):
+        if self.sprite_poco_original is not None:
+            self._desenhar_sprite_celula(
+                self.sprite_poco_original,
+                rect,
+                escala=0.72,
+                cor_borda=(112, 90, 75),
+                cor_glow=(35, 31, 30, 58),
+            )
+            return
+
         centro = rect.center
         for raio in range(rect.width // 3, 2, -3):
             tom = 18 + raio * 3
@@ -402,6 +428,16 @@ class InterfaceGrafica:
         pygame.draw.circle(self.tela, (112, 90, 75), centro, rect.width // 3, 2)
 
     def _desenhar_ouro(self, rect):
+        if self.sprite_ouro_original is not None:
+            self._desenhar_sprite_celula(
+                self.sprite_ouro_original,
+                rect,
+                escala=0.68,
+                cor_borda=self.COR_OURO,
+                cor_glow=(244, 196, 66, 66),
+            )
+            return
+
         centro = rect.center
         corpo = pygame.Rect(centro[0] - 14, centro[1] - 2, 28, 16)
         tampa = pygame.Rect(centro[0] - 14, centro[1] - 12, 28, 14)
@@ -411,6 +447,26 @@ class InterfaceGrafica:
         pygame.draw.ellipse(self.tela, (92, 46, 14), tampa, 2)
         pygame.draw.rect(self.tela, self.COR_OURO, (centro[0] - 3, centro[1] + 1, 6, 8), border_radius=2)
         self._desenhar_estrela((centro[0] + 18, centro[1] - 12), 6, self.COR_OURO)
+
+    def _desenhar_sprite_celula(self, sprite_original, rect, escala, cor_borda, cor_glow):
+        tamanho = max(24, int(rect.width * escala))
+        frame = pygame.Rect(0, 0, tamanho, tamanho)
+        frame.center = rect.center
+
+        glow = pygame.Surface((frame.width + 18, frame.height + 18), pygame.SRCALPHA)
+        pygame.draw.ellipse(glow, cor_glow, glow.get_rect())
+        self.tela.blit(glow, (frame.x - 9, frame.y - 9))
+
+        pygame.draw.ellipse(self.tela, self.COR_CARD_DEEP, frame)
+        sprite = pygame.transform.smoothscale(sprite_original, (frame.width, frame.height))
+        mascara = pygame.Surface((frame.width, frame.height), pygame.SRCALPHA)
+        pygame.draw.ellipse(mascara, (255, 255, 255, 255), mascara.get_rect())
+        sprite.set_colorkey(None)
+        sprite_crop = pygame.Surface((frame.width, frame.height), pygame.SRCALPHA)
+        sprite_crop.blit(sprite, (0, 0))
+        sprite_crop.blit(mascara, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        self.tela.blit(sprite_crop, frame.topleft)
+        pygame.draw.ellipse(self.tela, cor_borda, frame, 2)
 
     def _desenhar_wumpus(self, rect):
         frame_tamanho = max(26, int(rect.width * 0.6))
@@ -1051,7 +1107,20 @@ class InterfaceGrafica:
         self.tela.blit(txt, txt.get_rect(center=rect.center))
 
     def _desenhar_texto_limitado(self, fonte, texto, cor, x, y, largura_max):
+        if largura_max <= 0:
+            return
+
+        texto = str(texto)
+        if fonte.size(texto)[0] <= largura_max:
+            self.tela.blit(fonte.render(texto, True, cor), (x, y))
+            return
+
+        reticencias = "..."
+        if fonte.size(reticencias)[0] > largura_max:
+            return
+
         render = texto
-        while fonte.size(render)[0] > largura_max and len(render) > 1:
-            render = render[:-2] + "..."
-        self.tela.blit(fonte.render(render, True, cor), (x, y))
+        while render and fonte.size(render + reticencias)[0] > largura_max:
+            render = render[:-1]
+
+        self.tela.blit(fonte.render(render + reticencias, True, cor), (x, y))
