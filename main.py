@@ -271,7 +271,7 @@ def main():
 
                     if agente.alive:
                         percepcoes = ambiente.get_percepcoes(agente.pos)
-                        agente.agir(percepcoes)
+                        agente.agir(percepcoes, ambiente)
         elif cmd == "VEL_MAIS":
             SIMULATION_SPEED = min(20, SIMULATION_SPEED + 1)
             agente.adicionar_log(f"Velocidade aumentada para {SIMULATION_SPEED} Hz")
@@ -356,7 +356,7 @@ def main():
                         em_pausa = False
                 else:
                     percepcoes = ambiente.get_percepcoes(agente.pos)
-                    agente.agir(percepcoes)
+                    agente.agir(percepcoes, ambiente)
                     ambiente.agente_pos = agente.pos
 
                     if agente.pos in ambiente.pocos:

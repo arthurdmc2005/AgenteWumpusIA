@@ -455,7 +455,7 @@ class Agente:
         ordem = ["UP", "RIGHT", "DOWN", "LEFT"]
         return ordem[(ordem.index(self.direcao) + 1) % len(ordem)]
 
-    def agir(self, percepcao):
+    def agir(self, percepcao, ambiente=None):
         if not self.alive or self.vitorioso:
             return
 
@@ -473,6 +473,36 @@ class Agente:
 
         if not self.modo_ia:
             return
+
+        # Regra de combate para o agente automatico baseado em regras (apenas Wumpus estatico)
+        if (
+            self.tipo_agente == "regras"
+            and self.has_arrow
+            and not self.wumpus_movel
+            and self.kb.wumpus_confirmado is not None
+            and self.kb.wumpus_vivo
+            and ambiente is not None
+        ):
+            w_r, w_c = self.kb.wumpus_confirmado
+            a_r, a_c = self.pos
+            alinhado_e_adjacente = False
+            direcao_alvo = None
+
+            if a_r == w_r and abs(a_c - w_c) == 1:
+                alinhado_e_adjacente = True
+                direcao_alvo = "RIGHT" if w_c > a_c else "LEFT"
+            elif a_c == w_c and abs(a_r - w_r) == 1:
+                alinhado_e_adjacente = True
+                direcao_alvo = "DOWN" if w_r > a_r else "UP"
+
+            if alinhado_e_adjacente:
+                self.caminho_atual = []  # limpa a rota para recalcular apos matar o Wumpus
+                if self.direcao == direcao_alvo:
+                    self.atirar_flecha(ambiente)
+                    return
+                else:
+                    self.girar_para(direcao_alvo)
+                    return
 
         if not self.caminho_atual:
             self.planejar_rota()
